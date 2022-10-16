@@ -1,0 +1,771 @@
+module graph_mod (clk, rst, x, y, key, key_pulse, rgb, seed, rand_num);
+
+input clk, rst;
+input [9:0] x, y;
+input [4:0] key, key_pulse; 
+output [2:0] rgb; 
+input [19:0] seed;
+output [7:0] rand_num;
+
+reg [19:0] sreg0;
+wire [1:0] fd_back0;
+
+
+
+// 화면 크기 설정
+parameter MAX_X = 640; 
+parameter MAX_Y = 480;  
+
+//wall 의 좌표 설정
+wire [9:0] wall1_on,wall2_on,wall3_on,wall4_on;
+parameter WALL_X_L = 0; 
+parameter WALL_X_R = 639;
+parameter WALL1_Y_T = 374;
+parameter WALL1_Y_B = WALL1_Y_T + 5;
+parameter WALL2_Y_T = 274;
+parameter WALL2_Y_B = WALL2_Y_T + 5;
+parameter WALL3_Y_T = 174;
+parameter WALL3_Y_B = WALL3_Y_T + 5;
+parameter WALL4_Y_T = 74;
+parameter WALL4_Y_B = WALL4_Y_T +5;
+
+
+//bar의 x 좌표
+parameter BAR_X_L = 600; 
+parameter BAR_X_R = 603;
+
+//bar 속도, bar size
+parameter BAR_Y_SIZE = 72; 
+parameter BAR_V = 4; 
+
+//ball 속도, ball size 
+parameter BALL_SIZE = 8; 
+parameter BALL_V = 4; //ball의 속도
+
+//정대훈의 x y좌표
+parameter JDH_X_L = 10; 
+parameter JDH_X_R = JDH_X_L+16;
+parameter JDH_Y_T = JDH_Y_B-32; 
+parameter JDH_Y_B = 479;
+
+//JDH 속도, JDH size
+parameter JDH_Y_SIZE = 32; 
+parameter JDH_X_SIZE = 16;
+parameter JDH_V = 4;
+
+//mon의 xy 좌표
+parameter MON_X_L = 10; 
+parameter MON_X_R = JDH_X_L+16;
+parameter MON_Y_T = JDH_Y_B-32; 
+parameter MON_Y_B = 479;
+
+//MON 속도, MON size
+parameter MON_Y_SIZE = 32; 
+parameter MON_X_SIZE = 16;
+parameter MON_V = 1;
+
+//mon1의 xy 좌표
+parameter MON1_X_L = 10; 
+parameter MON1_X_R = JDH_X_L+16;
+parameter MON1_Y_T = JDH_Y_B-32; 
+parameter MON1_Y_B = 479;
+
+//MON1 속도, MON size
+parameter MON1_Y_SIZE = 32; 
+parameter MON1_X_SIZE = 16;
+parameter MON1_V = 2;
+
+//mon2의 xy 좌표
+parameter MON2_X_L = 10; 
+parameter MON2_X_R = JDH_X_L+16;
+parameter MON2_Y_T = JDH_Y_B-32; 
+parameter MON2_Y_B = 479;
+
+//MON2 속도, MON size
+parameter MON2_Y_SIZE = 32; 
+parameter MON2_X_SIZE = 16;
+parameter MON2_V = 4;
+
+//mon3의 xy 좌표
+parameter MON3_X_L = 10; 
+parameter MON3_X_R = JDH_X_L+16;
+parameter MON3_Y_T = JDH_Y_B-32; 
+parameter MON3_Y_B = 479;
+
+//MON3 속도, MON size
+parameter MON3_Y_SIZE = 32; 
+parameter MON3_X_SIZE = 16;
+parameter MON3_V = 4;
+
+//mon4의 xy 좌표
+parameter MON4_X_L = 10; 
+parameter MON4_X_R = JDH_X_L+16;
+parameter MON4_Y_T = JDH_Y_B-32; 
+parameter MON4_Y_B = 479;
+
+//MON4 속도, MON size
+parameter MON4_Y_SIZE = 32; 
+parameter MON4_X_SIZE = 16;
+parameter MON4_V = 4;
+
+//mon5의 xy 좌표
+parameter MON5_X_L = 10; 
+parameter MON5_X_R = JDH_X_L+16;
+parameter MON5_Y_T = JDH_Y_B-32; 
+parameter MON5_Y_B = 479;
+
+//MON5 속도, MON size
+parameter MON5_Y_SIZE = 32; 
+parameter MON5_X_SIZE = 16;
+parameter MON5_V = 4;
+
+//mon6의 xy 좌표
+parameter MON6_X_L = 10; 
+parameter MON6_X_R = JDH_X_L+16;
+parameter MON6_Y_T = JDH_Y_B-32; 
+parameter MON6_Y_B = 479;
+
+//MON6 속도, MON size
+parameter MON6_Y_SIZE = 32; 
+parameter MON6_X_SIZE = 16;
+parameter MON6_V = 4;
+
+//mon7의 xy 좌표
+parameter MON7_X_L = 10; 
+parameter MON7_X_R = JDH_X_L+16;
+parameter MON7_Y_T = JDH_Y_B-32; 
+parameter MON7_Y_B = 479;
+
+//MON7 속도, MON size
+parameter MON7_Y_SIZE = 32; 
+parameter MON7_X_SIZE = 16;
+parameter MON7_V = 4;
+
+//eat의 xy 좌표
+parameter EAT_X_L = 10; 
+parameter EAT_X_R = JDH_X_L+16;
+parameter EAT_Y_T = JDH_Y_B-32; 
+parameter EAT_Y_B = 479;
+
+//eat , MON size
+parameter EAT_Y_SIZE = 32; 
+parameter EAT_X_SIZE = 16;
+
+
+wire refr_tick; 
+
+
+
+wire reach_top, reach_bottom, reach_wall, reach_bar, die_jdh;
+reg game_stop, game_over;  
+
+//refrernce tick 
+assign refr_tick = (y==MAX_Y-1 && x==MAX_X-1)? 1 : 0; // 매 프레임마다 한 clk 동안만 1이 됨. 
+
+// wall
+assign wall1_on = (x>=WALL_X_L && x<=WALL_X_R && y >=WALL1_Y_T && y <= WALL1_Y_B )? 1 : 0; //wall1이 있는 영역
+assign wall2_on = (x>=WALL_X_L && x<=WALL_X_R && y >=WALL2_Y_T && y <= WALL2_Y_B )? 1 : 0; //wall2이 있는 영역
+assign wall3_on = (x>=WALL_X_L && x<=WALL_X_R && y >=WALL3_Y_T && y <= WALL3_Y_B )? 1 : 0; //wall3이 있는 영역
+assign wall4_on = (x>=WALL_X_L && x<=WALL_X_R && y >=WALL4_Y_T && y <= WALL4_Y_B )? 1 : 0; //wall4이 있는 영역
+
+//사다리
+assign wall1_on = (x>=WALL_X_L && x<=WALL_X_R && y >=WALL1_Y_T && y <= WALL1_Y_B )? 1 : 0; //wall1이 있는 영역
+assign wall2_on = (x>=WALL_X_L && x<=WALL_X_R && y >=WALL2_Y_T && y <= WALL2_Y_B )? 1 : 0; //wall2이 있는 영역
+assign wall3_on = (x>=WALL_X_L && x<=WALL_X_R && y >=WALL3_Y_T && y <= WALL3_Y_B )? 1 : 0; //wall3이 있는 영역
+assign wall4_on = (x>=WALL_X_L && x<=WALL_X_R && y >=WALL4_Y_T && y <= WALL4_Y_B )? 1 : 0; //wall4이 있는 영역
+
+
+
+
+/*---------------------------------------------------------*/
+// JDH가 MON 가 만났을때와 EAT을 먹었을때 SCORE 
+/*---------------------------------------------------------*/
+reg d_inc, d_clr;
+wire hit, die;
+reg [3:0] dig0, dig1;
+
+assign hit = (reach_bar==1 && refr_tick==1)? 1 : 0; //ball이 bar를 때림, hit를 1클럭 pulse로 만들기 위해 refr_tick과 AND 시킴
+assign die = (die_jdh==1 && refr_tick==1)? 1 : 0; //몬스터와 jdh가 부딪힘
+
+always @ (posedge clk or posedge rst) begin
+    if(rst | d_clr) begin
+        dig1 <= 0;
+        dig0 <= 0;
+    end else if (hit) begin //bar를 맞추면 점수가 증가
+        if(dig0==9) begin 
+            dig0 <= 0;
+            if (dig1==9) dig1 <= 0;
+            else dig1 <= dig1+1; //점수 10의 자리 1씩 증가
+        end else dig0 <= dig0+1; //점수 1의 자리 1씩 증가
+    end
+end
+
+/*---------------------------------------------------------*/
+// finite state machine for game control
+/*---------------------------------------------------------*/
+parameter NEWGAME=2'b00, PLAY=2'b01, NEWBALL=2'b10, OVER=2'b11; 
+reg [1:0] state_reg, state_next;
+reg [1:0] life_reg, life_next;
+
+always @ (key, hit, die, state_reg, life_reg) begin
+    game_stop = 1; 
+    d_clr = 0;
+    d_inc = 0;
+    life_next = life_reg;
+    game_over = 0;
+
+    case(state_reg) 
+        NEWGAME: begin //새 게임
+            d_clr = 1; //스코어 0으로 초기화
+            if(key[4] == 1) begin //버튼이 눌리면
+                state_next = PLAY; //게임시작
+                life_next = 2'b10; //남은 생명 2개로
+            end else begin
+                state_next = NEWGAME; //버튼이 안 눌리면 현재 상태 유지
+                life_next = 2'b11; //남은 생명 3개 유지
+            end
+         end
+         PLAY: begin
+            game_stop = 0; //게임 Running
+            d_inc = hit;
+            if (die) begin //ball을 놓치면
+                if (life_reg==2'b00) //남은 생명이 없으면
+                    state_next = OVER; //게임종료
+                else begin//남은 생명이 있으면 
+                    state_next = NEWBALL; 
+                    life_next = life_reg-1'b1; //남은 생명 하나 줄임
+                end
+            end else
+                state_next = PLAY; //ball 놓치지 않으면 계속 진행
+        end
+        NEWBALL: //새 ball 준비
+            if(key[4] == 1) state_next = PLAY;
+            else state_next = NEWBALL; 
+        OVER: begin
+            if(key[4] == 1) begin //게임이 끝났을 때 버튼을 누르면 새게임 시작
+                state_next = NEWGAME;
+            end else begin
+                state_next = OVER;
+            end
+            game_over = 1;
+        end 
+        default: 
+            state_next = NEWGAME;
+    endcase
+end
+
+always @ (posedge clk or posedge rst) begin
+    if(rst) begin
+        state_reg <= NEWGAME; 
+        life_reg <= 0;
+    end else begin
+        state_reg <= state_next; 
+        life_reg <= life_next;
+    end
+end
+
+/*---------------------------------------------------------*/
+// text on screen 
+/*---------------------------------------------------------*/
+// score region
+reg [6:0] char_addr_s, char_addr_l, char_addr_o;
+reg [2:0] bit_addr_s, bit_addr_l, bit_addr_o;
+wire [3:0] row_addr_s, row_addr_l, row_addr_o; 
+wire score_on, life_on, over_on;
+wire [9:0] ladder1_x, ladder1_y,ladder2_x, ladder2_y,ladder3_x, ladder3_y,ladder4_x, ladder4_y,jdh_x,jdh_y,mon_x,mon_y,mon1_x,mon1_y,mon2_x,mon2_y,mon3_x,mon3_y,mon4_x,mon4_y,mon5_x,mon5_y,mon6_x,mon6_y,mon7_x,mon7_y,eat_on;
+wire ladder1_on,ladder2_on,ladder3_on,ladder4_on, jdh_on,mon_on,mon1_on,mon2_on,mon3_on,mon4_on,mon5_on,mon6_on,mon7_on;
+wire [6:0] char_addr;
+reg [6:0] char_addr_l1,char_addr_l2,char_addr_l3,char_addr_l4,char_addr_l5,char_addr_l6,char_addr_l7,char_addr_l8,char_addr_l9,char_addr_l10,char_addr_l11,char_addr_l12,char_addr_l13,char_addr_l14;
+wire [2:0] bit_addr;
+reg [2:0] bit_addr_l1,bit_addr_l2,bit_addr_l3,bit_addr_l4,bit_addr_l5,bit_addr_l6,bit_addr_l7,bit_addr_l8,bit_addr_l9,bit_addr_l10,bit_addr_l11,bit_addr_l12,bit_addr_l13,bit_addr_l14;
+wire [3:0] row_addr,row_addr_l1, row_addr_l2,row_addr_l3,row_addr_l4,row_addr_l5,row_addr_l6,row_addr_l7,row_addr_l8,row_addr_l9,row_addr_l10,row_addr_l11,row_addr_l12,row_addr_l13,row_addr_l14 ;   
+wire font_bit;
+wire [7:0] font_word;
+wire [10:0] rom_addr;
+wire [9:0] jdh_y_t, jdh_y_b,jdh_x_r, jdh_x_l; 
+wire [9:0] mon_x_l, mon_x_r, mon_y_t, mon_y_b,mon1_x_l, mon1_x_r, mon1_y_t, mon1_y_b,mon2_x_l, mon2_x_r, mon2_y_t, mon2_y_b,mon3_x_l, mon3_x_r, mon3_y_t, mon3_y_b,eat_x_l, eat_x_r, eat_y_t, eat_y_b;
+wire [9:0] mon4_x_l, mon4_x_r, mon4_y_t, mon4_y_b,mon5_x_l, mon5_x_r, mon5_y_t, mon5_y_b , mon6_x_l, mon6_x_r, mon6_y_t, mon6_y_b, mon7_x_l, mon7_x_r, mon7_y_t, mon7_y_b;
+reg [9:0] jdh_y_reg,jdh_x_reg,mon_x_reg, mon_y_reg,mon1_x_reg, mon1_y_reg,mon2_x_reg, mon2_y_reg,mon3_x_reg, mon3_y_reg,mon4_x_reg, mon4_y_reg,mon5_x_reg, mon5_y_reg,mon6_x_reg, mon6_y_reg,mon7_x_reg, mon7_y_reg,eat_x_reg, eat_y_reg;
+reg [9:0]  mon_vx_reg, mon_vy_reg,mon1_vx_reg, mon1_vy_reg,mon2_vx_reg, mon2_vy_reg,mon3_vx_reg, mon3_vy_reg,mon4_vx_reg, mon4_vy_reg,mon5_vx_reg, mon5_vy_reg,mon6_vx_reg, mon6_vy_reg,mon7_vx_reg, mon7_vy_reg; 
+
+assign rom_addr = {char_addr, row_addr};
+font_rom_vhd font_rom_inst (clk, rom_addr, font_word); //rom 에서 읽기
+assign font_bit = font_word[~bit_addr];//~d붙히기
+
+assign char_addr = (jdh_on)? char_addr_l5: (eat_on)? char_addr_l14:  (mon7_on)? char_addr_l13: (mon6_on)? char_addr_l12: (mon5_on)? char_addr_l11: (mon4_on)? char_addr_l10: (mon3_on)? char_addr_l9:  (mon2_on)? char_addr_l8: (ladder1_on)? char_addr_l1:(ladder2_on)? char_addr_l2 : (ladder3_on)? char_addr_l3 : (ladder4_on)? char_addr_l4 :  (mon_on)? char_addr_l6 : (mon1_on)? char_addr_l7 : (score_on)? char_addr_s : (life_on)? char_addr_l : (over_on)? char_addr_o : 0;
+assign row_addr = (jdh_on)?  row_addr_l5 : (eat_on)?  row_addr_l14 : (mon7_on)?  row_addr_l13 : (mon6_on)?  row_addr_l12 : (mon5_on)?  row_addr_l11 : (mon4_on)?  row_addr_l10 : (mon3_on)?  row_addr_l9 : (mon2_on)?  row_addr_l8: (ladder1_on)? row_addr_l1 : (ladder2_on)? row_addr_l2 : (ladder3_on)? row_addr_l3 : (ladder4_on)? row_addr_l4 :  (mon_on)?  row_addr_l6: (mon1_on)?  row_addr_l7: (score_on)? row_addr_s : (life_on)? row_addr_l : (over_on)? row_addr_o : 0;
+assign bit_addr = (jdh_on)?  bit_addr_l5 : (eat_on)?  bit_addr_l14: (mon7_on)?  bit_addr_l13 : (mon6_on)?  bit_addr_l12 : (mon5_on)?  bit_addr_l11 : (mon4_on)?  bit_addr_l10 : (mon3_on)?  bit_addr_l9 : (mon2_on)?  bit_addr_l8 : (ladder1_on)? bit_addr_l1 :(ladder2_on)? bit_addr_l2 :(ladder3_on)? bit_addr_l3 :(ladder4_on)? bit_addr_l4 :  (mon_on)?  bit_addr_l6 : (mon1_on)?  bit_addr_l7 : (score_on)? bit_addr_s : (life_on)? bit_addr_l : (over_on)? bit_addr_o : 0;
+
+// score
+wire [9:0] score_x_l, score_y_t;
+assign score_x_l = 100; 
+assign score_y_t = 0; 
+assign score_on = (y>=score_y_t && y<score_y_t+16 && x>=score_x_l && x<score_x_l+8*4)? 1 : 0; 
+assign row_addr_s = y-score_y_t;
+always @ (*) begin
+    if (x>=score_x_l+8*0 && x<score_x_l+8*1) begin bit_addr_s = x-score_x_l-8*0; char_addr_s = 7'b1010011; end // S x53    
+    else if (x>=score_x_l+8*1 && x<score_x_l+8*2) begin bit_addr_s = x-score_x_l-8*1; char_addr_s = 7'b0111010; end // : x3a
+    else if (x>=score_x_l+8*2 && x<score_x_l+8*3) begin bit_addr_s = x-score_x_l-8*2; char_addr_s = {3'b011, dig1}; end // digit 10, ASCII 코드에서 숫자의 address는 011로 시작 
+    else if (x>=score_x_l+8*3 && x<score_x_l+8*4) begin bit_addr_s = x-score_x_l-8*3; char_addr_s = {3'b011, dig0}; end // digit 1
+    else begin bit_addr_s = 0; char_addr_s = 0; end                         
+end
+
+//remaining ball
+wire [9:0] life_x_l, life_y_t; 
+assign life_x_l = 200; 
+assign life_y_t = 0; 
+assign life_on = (y>=life_y_t && y<life_y_t+16 && x>=life_x_l && x<life_x_l+8*3)? 1 : 0;
+assign row_addr_l = y-life_y_t;
+always @(*) begin
+    if (x>=life_x_l+8*0 && x<life_x_l+8*1) begin bit_addr_l = (x-life_x_l-8*0); char_addr_l = 7'b1000010; end // B x42  
+    else if (x>=life_x_l+8*1 && x<life_x_l+8*2) begin bit_addr_l = (x-life_x_l-8*1); char_addr_l = 7'b0111010; end // :
+    else if (x>=life_x_l+8*2 && x<life_x_l+8*3) begin bit_addr_l = (x-life_x_l-8*2); char_addr_l = {5'b01100, life_reg}; end
+    else begin bit_addr_l = 0; char_addr_l = 0; end   
+end
+
+// game over
+assign over_on = (game_over==1 && y[9:6]==3 && x[9:5]>=5 && x[9:5]<=13)? 1 : 0; 
+assign row_addr_o = y[5:2];
+always @(*) begin
+    bit_addr_o = x[4:2];
+    case (x[9:5]) 
+        5: char_addr_o = 7'b1000111; // G x47
+        6: char_addr_o = 7'b1100001; // a x61
+        7: char_addr_o = 7'b1101101; // m x6d
+        8: char_addr_o = 7'b1100101; // e x65
+        9: char_addr_o = 7'b0000000; //                      
+        10: char_addr_o = 7'b1001111; // O x4f
+        11: char_addr_o = 7'b1110110; // v x76
+        12: char_addr_o = 7'b1100101; // e x65
+        13: char_addr_o = 7'b1110010; // r x72
+        default: char_addr_o = 0; 
+    endcase
+end
+
+
+//ladder 1,2,3,4의 좌표 설정 text 이용
+assign ladder1_x = 450; //사다리 1 
+assign ladder1_y = 364;
+assign row_addr_l1 = (y-ladder1_y)>>3; 
+assign ladder1_on = ( y>=ladder1_y && y<ladder1_y+128 && x>=ladder1_x && x<ladder1_x+64)? 1:0;
+always @* begin
+    if(x>=ladder1_x && x<ladder1_x+64) begin 
+    bit_addr_l1 = (x-ladder1_x+64)>>3; char_addr_l1 = 7'b0000010; end//0x02 사다리
+    else begin bit_addr_l1 = 0; char_addr_l1 = 0; 
+    end
+end
+assign ladder2_x = 180; //사다리 2 좌표 
+assign ladder2_y = 264;
+assign row_addr_l2 = (y-ladder2_y)>>3; 
+assign ladder2_on = ( y>=ladder2_y && y<ladder2_y+128 && x>=ladder2_x && x<ladder2_x+64)? 1:0;
+always @* begin
+    if(x>=ladder2_x && x<ladder2_x+64) begin 
+    bit_addr_l2 = (x-ladder2_x+64)>>3; char_addr_l2 = 7'b0000010; end//0x02 사다리
+    else begin bit_addr_l2 = 0; char_addr_l2 = 0; 
+    end
+end
+assign ladder3_x = 450; //사다리 3 좌표 
+assign ladder3_y = 164;
+assign row_addr_l3 = (y-ladder3_y)>>3; 
+assign ladder3_on = ( y>=ladder3_y && y<ladder3_y+128 && x>=ladder3_x && x<ladder3_x+64)? 1:0;
+always @* begin
+    if(x>=ladder3_x && x<ladder3_x+64) begin 
+    bit_addr_l3 = (x-ladder3_x+64)>>3; char_addr_l3 = 7'b0000010; end//0x02 사다리
+    else begin bit_addr_l3 = 0; char_addr_l3 = 0; 
+    end
+end
+assign ladder4_x = 180; //사다리 4 좌표 
+assign ladder4_y = 64;
+assign row_addr_l4 = (y-ladder4_y)>>3; 
+assign ladder4_on = ( y>=ladder4_y && y<ladder4_y+128 && x>=ladder4_x && x<ladder4_x+64)? 1:0;
+always @* begin
+    if(x>=ladder4_x && x<ladder4_x+64) begin 
+    bit_addr_l4 = (x-ladder4_x+64)>>3; char_addr_l4 = 7'b0000010; end//0x02 사다리
+    else begin bit_addr_l4 = 0; char_addr_l4 = 0; 
+    end
+end
+
+/*---------------------------------------------------------*/
+// 정대훈의 위치 결정
+/*---------------------------------------------------------*/
+//정대훈의 x 좌표
+
+
+
+assign jdh_y_t = jdh_y_reg; //정대훈 좌표 
+assign jdh_y_b = jdh_y_reg+JDH_Y_SIZE-1;
+assign jdh_x_l = jdh_x_reg;
+assign jdh_x_r = jdh_x_reg+JDH_X_SIZE-1;
+assign row_addr_l5 = (y-jdh_y_t)>>1; //좌표
+assign jdh_on = ( x>=jdh_x_l && x<=jdh_x_r && y>=jdh_y_t && y<=jdh_y_b)? 1:0;
+always @* begin
+    if(x>=jdh_x_l && x<jdh_x_r) begin 
+    bit_addr_l5 = (x-jdh_x_l)>>1; char_addr_l5 = 7'b0000001; end//0x01 정대훈
+    else begin bit_addr_l5 = 0; char_addr_l5 = 0; 
+    end
+end
+parameter D0=450;
+parameter D01=510;
+parameter D02=180;
+parameter D03=240;
+always @ (posedge clk or posedge rst) begin
+    if (rst| game_stop) jdh_y_reg <= (MAX_Y-JDH_Y_SIZE-1); //시작지점
+    else if (refr_tick) 
+          if (key==5'h18 && jdh_y_b<=MAX_Y-1-JDH_V  && ((jdh_y_t >= WALL1_Y_B && jdh_y_t<=MAX_Y-32)) ) jdh_y_reg <= jdh_y_reg + JDH_V; //1층 사다리 왼쪽 
+          else if (key==5'h18 && jdh_y_b<=MAX_Y-1-JDH_V  && ((jdh_y_t >= WALL2_Y_B && jdh_y_t<=WALL1_Y_T-32) || (D0<=jdh_x_l && jdh_x_l<=D01)))   jdh_y_reg <= jdh_y_reg + JDH_V; //move down
+          else if (key==5'h18 && jdh_y_b<=MAX_Y-1-JDH_V  && ((jdh_y_t >= WALL3_Y_B && jdh_y_t<=WALL2_Y_T-32) || (D02<=jdh_x_l && jdh_x_l<=D03)))   jdh_y_reg <= jdh_y_reg + JDH_V;
+          else if (key==5'h18 && jdh_y_b<=MAX_Y-1-JDH_V  && ((jdh_y_t >= WALL4_Y_B && jdh_y_t<=WALL3_Y_T-32) || (D0<=jdh_x_l && jdh_x_l<=D01)))   jdh_y_reg <= jdh_y_reg + JDH_V;
+          else if (key==5'h18 && jdh_y_b<=MAX_Y-1-JDH_V  && ((jdh_y_t >= MAX_Y-479 && jdh_y_t<=WALL4_Y_T-32) || (D02<=jdh_x_l && jdh_x_l<=D03)))   jdh_y_reg <= jdh_y_reg + JDH_V;
+        else if (key==5'h1F && jdh_y_t>=JDH_V ) jdh_y_reg <= jdh_y_reg - JDH_V;  //move up
+        else if (key==5'h17 && jdh_x_r<=MAX_X-1-JDH_V) jdh_x_reg <= jdh_x_reg + JDH_V;  //move right
+        else if (key==5'h19 && jdh_x_l>=JDH_V) jdh_x_reg <= jdh_x_reg - JDH_V;  //move left
+end
+/*assign die_jdh = ((jdh_x_r==mon_x_l  && (mon_y_t<=jdh_y_b)) )? 1 : //ball의 오른쪽 경계가 639보다 크면 ball을 놓침
+                   ((jdh_x_r==mon_x_l  && (jdh_y_b<=mon_y_b)) )? 1 :
+                   ((jdh_x_l==mon_x_r && (jdh_y_b>=mon_y_b)) )? 1 : 
+                   ((jdh_x_l==mon_x_r && (mon_y_t<=jdh_y_b)) )? 1 : 0;
+
+/*---------------------------------------------------------*/
+// 몬스터의 위치 결정
+/*---------------------------------------------------------*/
+ wire mon_left,mon_right;
+ 
+assign mon_x_l = mon_x_reg; //mon의 left
+assign mon_x_r = mon_x_reg + MON_X_SIZE - 1; //mon의 right
+assign mon_y_t = mon_y_reg; //mon의 top
+assign mon_y_b = mon_y_reg + MON_Y_SIZE - 1; //mon의 bottom
+assign row_addr_l6 = (y-mon_y_t)>>1; //좌표
+assign mon_on = (x>=mon_x_l && x<=mon_x_r && y>=mon_y_t && y<=mon_y_b)? 1 : 0; //mon1이 있는 영역
+
+always @* begin
+    if(x>=mon_x_l && x<mon_x_r) begin 
+    bit_addr_l6 = (x-mon_x_l)>>1; char_addr_l6 = 7'b0000100; end//0x04 mon
+    else begin bit_addr_l6 = 0; char_addr_l6 = 0; 
+    end
+end
+always @ (posedge clk or posedge rst) begin
+    if(rst | game_stop) begin
+        mon_x_reg <= MAX_X-1-MON_X_SIZE; // 초기좌표
+        mon_y_reg <= MAX_Y-1-MON_Y_SIZE; // 
+    end else if (refr_tick) begin
+        mon_x_reg <= mon_x_reg + mon_vx_reg; //매 프레임마다 mon_vx_reg만큼 움직임
+        mon_y_reg <= MAX_Y-1-MON_Y_SIZE; //매 프레임마다 mon_vy_reg만큼 움직임
+    end
+end
+
+
+assign mon_left = ( mon_x_l <= MAX_X-609)? 1 : 0;   //mon 움직임 제한
+assign mon_right = ( mon_x_r >= MAX_X-MON1_X_SIZE-30)? 1 : 0;
+
+always @ (posedge clk or posedge rst) begin
+    if(rst | game_stop) begin
+        mon_vx_reg <= -1*MON_V; //game,rst 이 멈추면 왼쪽으로 
+        mon_vy_reg <= MON_V; //오른쪽
+    end else begin
+        if (mon_left) mon_vx_reg <= MON_V; // .
+        else if (mon_right) mon_vx_reg <= -1*MON_V; // 
+    end  
+end
+
+//mon1
+ wire mon1_left,mon1_right;
+
+assign mon1_x_l = mon1_x_reg; //mon의 left
+assign mon1_x_r = mon1_x_reg + MON1_X_SIZE - 1; //mon의 right
+assign mon1_y_t = mon1_y_reg; //mon의 top
+assign mon1_y_b = mon1_y_reg + MON1_Y_SIZE - 1; //mon의 bottom
+assign row_addr_l7 = (y-mon1_y_t)>>1; //좌표
+assign mon1_on = (x>=mon1_x_l && x<=mon1_x_r && y>=mon1_y_t && y<=mon1_y_b)? 1 : 0; //mon1이 있는 영역
+
+always @* begin
+   if(x>=mon1_x_l && x<mon1_x_r) begin 
+   bit_addr_l7 = (x-mon1_x_l)>>1; char_addr_l7 = 7'b0000100; end//0x04 mon
+   else begin bit_addr_l7 = 0; char_addr_l7 = 0; 
+   end
+end
+always @ (posedge clk or posedge rst) begin
+   if(rst | game_stop) begin
+       mon1_x_reg <= MAX_X-1-MON1_X_SIZE; // game이 멈추면 중간에서 시작
+       mon1_y_reg <= MAX_Y-1-MON1_Y_SIZE-1; // game이 멈추면 중간에서 시작
+   end else if (refr_tick) begin
+       mon1_x_reg <= mon1_x_reg + mon1_vx_reg; //매 프레임마다 ball_vx_reg만큼 움직임
+       mon1_y_reg <= MAX_Y-1-MON1_Y_SIZE-128; //매 프레임마다 ball_vy_reg만큼 움직임
+   end
+end
+
+
+assign mon1_left = ( mon1_x_l <= MAX_X-609)? 1 : 0;
+assign mon1_right = ( mon1_x_r >= MAX_X-MON1_X_SIZE-30)? 1 : 0;
+
+always @ (posedge clk or posedge rst) begin
+   if(rst | game_stop) begin
+       mon1_vx_reg <= -1*MON1_V; //game이 멈추면 왼쪽으로 
+       mon1_vy_reg <= MON1_V; //game이 멈추면 아래로
+   end else begin
+       if (mon1_left) mon1_vx_reg <= MON1_V; //천장에 부딪히면 오른쪽으로.
+       else if (mon1_right) mon1_vx_reg <= -1*MON1_V; //바닥에 부딪히면 왼쪽으로 
+   end  
+end
+
+//mon2
+ wire mon2_left,mon2_right;
+ 
+assign mon2_x_l = mon2_x_reg; //mon의 left
+assign mon2_x_r = mon2_x_reg + MON2_X_SIZE - 1; //mon의 right
+assign mon2_y_t = mon2_y_reg; //mon의 top
+assign mon2_y_b = mon2_y_reg + MON2_Y_SIZE - 1; //mon의 bottom
+assign row_addr_l8 = (y-mon2_y_t)>>1; //좌표
+assign mon2_on = (x>=mon2_x_l && x<=mon2_x_r && y>=mon2_y_t && y<=mon2_y_b)? 1 : 0; //mon1이 있는 영역
+
+always @* begin
+    if(x>=mon2_x_l && x<mon2_x_r) begin 
+    bit_addr_l8 = (x-mon2_x_l)>>1; char_addr_l8 = 7'b0000101; end//0x05 mon2
+    else begin bit_addr_l8 = 0; char_addr_l8 = 0; 
+    end
+end
+always @ (posedge clk or posedge rst) begin
+    if(rst | game_stop) begin
+        mon2_x_reg <= MAX_X-1-MON2_X_SIZE; // 초기좌표
+        mon2_y_reg <= MAX_Y-1-MON2_Y_SIZE-32; // 
+    end else if (refr_tick) begin
+        mon2_x_reg <= mon2_x_reg + mon2_vx_reg; //매 프레임마다 mon_vx_reg만큼 움직임
+        mon2_y_reg <= MAX_Y-1-MON2_Y_SIZE-32; //매 프레임마다 mon_vy_reg만큼 움직임
+    end
+end
+
+
+assign mon2_left = ( mon2_x_l <= MAX_X-609)? 1 : 0;   //mon 움직임 제한 왼쪽
+assign mon2_right = ( mon2_x_r >= MAX_X-MON1_X_SIZE-30)? 1 : 0; //오른쪽 
+
+always @ (posedge clk or posedge rst) begin
+    if(rst | game_stop) begin
+        mon2_vx_reg <= -1*MON2_V; //game,rst 일때  왼쪽으로 
+        mon2_vy_reg <= MON2_V; //오른쪽
+    end else begin
+        if (mon2_left) mon2_vx_reg <= MON2_V; // .
+        else if (mon2_right) mon2_vx_reg <= -1*MON2_V; // 
+    end  
+end
+
+//mon3
+ wire mon3_left,mon3_right;
+
+assign mon3_x_l = mon3_x_reg; //mon의 left
+assign mon3_x_r = mon3_x_reg + MON3_X_SIZE - 1; //mon의 right
+assign mon3_y_t = mon3_y_reg; //mon의 top
+assign mon3_y_b = mon3_y_reg + MON3_Y_SIZE - 1; //mon의 bottom
+assign row_addr_l9 = (y-mon3_y_t)>>1; //좌표
+assign mon3_on = (x>=mon3_x_l && x<=mon3_x_r && y>=mon3_y_t && y<=mon3_y_b)? 1 : 0; //mon4이 있는 영역
+
+always @* begin
+   if(x>=mon3_x_l && x<mon3_x_r) begin 
+   bit_addr_l9 = (x-mon3_x_l)>>1; char_addr_l9 = 7'b0000101; end//0x05 mon
+   else begin bit_addr_l9 = 0; char_addr_l9 = 0; 
+   end
+end
+always @ (posedge clk or posedge rst) begin
+   if(rst | game_stop) begin
+       mon3_x_reg <= MAX_X-1-MON3_X_SIZE; // game이 멈추면 중간에서 시작
+       mon3_y_reg <= MAX_Y-1-MON3_Y_SIZE-128; // game이 멈추면 중간에서 시작
+   end else if (refr_tick) begin
+       mon3_x_reg <= mon3_x_reg + mon3_vx_reg; //매 프레임마다 ball_vx_reg만큼 움직임
+       mon3_y_reg <= MAX_Y-1-MON3_Y_SIZE-128; //매 프레임마다 ball_vy_reg만큼 움직임
+   end
+end
+
+
+assign mon3_left = ( mon3_x_l <= MAX_X-609)? 1 : 0;
+assign mon3_right = ( mon3_x_r >= MAX_X-MON3_X_SIZE-450)? 1 : 0;
+
+always @ (posedge clk or posedge rst) begin
+   if(rst | game_stop) begin
+       mon3_vx_reg <= -1*MON3_V; //game이 멈추면 왼쪽으로 
+       mon3_vy_reg <= MON3_V; //game이 멈추면 아래로
+   end else begin
+       if (mon3_left) mon3_vx_reg <= MON3_V; //천장에 부딪히면 오른쪽으로.
+       else if (mon3_right) mon3_vx_reg <= -1*MON3_V; //바닥에 부딪히면 왼쪽으로 
+   end  
+end
+
+//mon4
+ wire mon4_left,mon4_right;
+
+assign mon4_x_l = mon4_x_reg; //mon의 left
+assign mon4_x_r = mon4_x_reg + MON4_X_SIZE - 1; //mon의 right
+assign mon4_y_t = mon4_y_reg; //mon의 top
+assign mon4_y_b = mon4_y_reg + MON4_Y_SIZE - 1; //mon의 bottom
+assign row_addr_l10 = (y-mon4_y_t)>>1; //좌표
+assign mon4_on = (x>=mon4_x_l && x<=mon4_x_r && y>=mon4_y_t && y<=mon4_y_b)? 1 : 0; //mon4이 있는 영역
+
+always @* begin
+   if(x>=mon4_x_l && x<mon4_x_r) begin 
+   bit_addr_l10 = (x-mon4_x_l)>>1; char_addr_l10 = 7'b0000101; end//0x05 mon
+   else begin bit_addr_l10 = 0; char_addr_l10 = 0; 
+   end
+end
+always @ (posedge clk or posedge rst) begin
+   if(rst | game_stop) begin
+       mon4_x_reg <= MAX_X-1-MON4_X_SIZE; // game이 멈추면 중간에서 시작
+       mon4_y_reg <= MAX_Y-1-MON4_Y_SIZE-210; // game이 멈추면 중간에서 시작
+   end else if (refr_tick) begin
+       mon4_x_reg <= mon4_x_reg + mon4_vx_reg; //매 프레임마다 ball_vx_reg만큼 움직임
+       mon4_y_reg <= MAX_Y-1-MON4_Y_SIZE-210; //매 프레임마다 ball_vy_reg만큼 움직임
+   end
+end
+
+
+assign mon4_left = ( mon4_x_l <= MAX_X-580)? 1 : 0;
+assign mon4_right = ( mon4_x_r >= MAX_X-MON4_X_SIZE-150)? 1 : 0;
+
+always @ (posedge clk or posedge rst) begin
+   if(rst | game_stop) begin
+       mon4_vx_reg <= -1*MON4_V; //game이 멈추면 왼쪽으로 
+       mon4_vy_reg <= MON4_V; //game이 멈추면 아래로
+   end else begin
+       if (mon4_left) mon4_vx_reg <= MON4_V; //천장에 부딪히면 오른쪽으로.
+       else if (mon4_right) mon4_vx_reg <= -2*MON4_V; //바닥에 부딪히면 왼쪽으로 
+   end  
+end
+
+//mon5
+ wire mon5_left,mon5_right;
+
+assign mon5_x_l = mon5_x_reg; //mon의 left
+assign mon5_x_r = mon5_x_reg + MON5_X_SIZE - 1; //mon의 right
+assign mon5_y_t = mon5_y_reg; //mon의 top
+assign mon5_y_b = mon5_y_reg + MON5_Y_SIZE - 1; //mon의 bottom
+assign row_addr_l11 = (y-mon5_y_t)>>1; //좌표
+assign mon5_on = (x>=mon5_x_l && x<=mon5_x_r && y>=mon5_y_t && y<=mon5_y_b)? 1 : 0; //mon4이 있는 영역
+
+always @* begin
+   if(x>=mon5_x_l && x<mon5_x_r) begin 
+   bit_addr_l11 = (x-mon5_x_l)>>1; char_addr_l11 = 7'b0000100; end//0x05 mon
+   else begin bit_addr_l11 = 0; char_addr_l11 = 0; 
+   end
+end
+always @ (posedge clk or posedge rst) begin
+   if(rst | game_stop) begin
+       mon5_x_reg <= MAX_X-1-MON5_X_SIZE; // game이 멈추면 중간에서 시작
+       mon5_y_reg <= MAX_Y-1-MON5_Y_SIZE-245; // game이 멈추면 중간에서 시작
+   end else if (refr_tick) begin
+       mon5_x_reg <= mon5_x_reg + mon5_vx_reg; //매 프레임마다 ball_vx_reg만큼 움직임
+       mon5_y_reg <= MAX_Y-1-MON5_Y_SIZE-245; //매 프레임마다 ball_vy_reg만큼 움직임
+   end
+end
+
+
+assign mon5_left = ( mon5_x_l <= MAX_X-639)? 1 : 0;
+assign mon5_right = ( mon5_x_r >= MAX_X-MON5_X_SIZE-450)? 1 : 0;
+
+always @ (posedge clk or posedge rst) begin
+   if(rst | game_stop) begin
+       mon5_vx_reg <= -2*MON5_V; //game이 멈추면 왼쪽으로 
+       mon5_vy_reg <= MON5_V; //game이 멈추면 아래로
+   end else begin
+       if (mon5_left) mon5_vx_reg <= MON5_V; //천장에 부딪히면 오른쪽으로.
+       else if (mon5_right) mon5_vx_reg <= -1*MON5_V; //바닥에 부딪히면 왼쪽으로 
+   end  
+end
+
+//mon6
+ wire mon6_left,mon6_right;
+
+assign mon6_x_l = mon6_x_reg; //mon의 left
+assign mon6_x_r = mon6_x_reg + MON6_X_SIZE - 1; //mon의 right
+assign mon6_y_t = mon6_y_reg; //mon의 top
+assign mon6_y_b = mon6_y_reg + MON6_Y_SIZE - 1; //mon의 bottom
+assign row_addr_l12 = (y-mon6_y_t)>>1; //좌표
+assign mon6_on = (x>=mon6_x_l && x<=mon6_x_r && y>=mon6_y_t && y<=mon6_y_b)? 1 : 0; //mon4이 있는 영역
+
+always @* begin
+   if(x>=mon6_x_l && x<mon6_x_r) begin 
+   bit_addr_l12 = (x-mon6_x_l)>>1; char_addr_l12 = 7'b0000100; end//0x05 mon
+   else begin bit_addr_l12 = 0; char_addr_l12 = 0; 
+   end
+end
+always @ (posedge clk or posedge rst) begin
+   if(rst | game_stop) begin
+       mon6_x_reg <= MAX_X-1-MON6_X_SIZE; // game이 멈추면 중간에서 시작
+       mon6_y_reg <= MAX_Y-1-MON6_Y_SIZE-300; // game이 멈추면 중간에서 시작
+   end else if (refr_tick) begin
+       mon6_x_reg <= mon6_x_reg + mon6_vx_reg; //매 프레임마다 ball_vx_reg만큼 움직임
+       mon6_y_reg <= MAX_Y-1-MON6_Y_SIZE-300; //매 프레임마다 ball_vy_reg만큼 움직임
+   end
+end
+
+
+assign mon6_left = ( mon6_x_l <= MAX_X-639)? 1 : 0;
+assign mon6_right = ( mon6_x_r >= MAX_X-MON6_X_SIZE)? 1 : 0;
+
+always @ (posedge clk or posedge rst) begin
+   if(rst | game_stop) begin
+       mon6_vx_reg <= -3*MON6_V; //game이 멈추면 왼쪽으로 
+       mon6_vy_reg <= MON6_V; //game이 멈추면 아래로
+   end else begin
+       if (mon6_left) mon6_vx_reg <= MON6_V; //천장에 부딪히면 오른쪽으로.
+       else if (mon6_right) mon6_vx_reg <= -1*MON6_V; //바닥에 부딪히면 왼쪽으로 
+   end  
+end
+/******************************************************************************
+eat 
+******************************************************************************/
+nansu u0(clk,rst,seed,rand_num);
+
+wire eat_left,eat_right;
+
+assign eat_x_l = eat_x_reg; //mon의 left
+assign eat_x_r = eat_x_reg + EAT_X_SIZE - 1; //mon의 right
+assign eat_y_t = eat_y_reg; //mon의 top
+assign eat_y_b = eat_y_reg + EAT_Y_SIZE - 1; //mon의 bottom
+assign row_addr_l14 = (y-eat_y_t)>>1; //좌표
+assign eat_on = (x>=eat_x_l && x<=eat_x_r && y>=eat_y_t && y<=eat_y_b)? 1 : 0; //mon4이 있는 영역
+
+ always @* begin
+   if(x>=eat_x_l && x<eat_x_r) begin 
+   bit_addr_l14 = (x-eat_x_l)>>1; char_addr_l14 = 7'b0001001; end//0x05 mon
+   else begin bit_addr_l14 = 0; char_addr_l14 = 0; 
+   end
+end
+always @ (posedge clk or posedge rst) begin
+   if(rst | game_stop ) begin
+       eat_x_reg <= MAX_X-1-EAT_X_SIZE-180; // game이 멈추면 중간에서 시작
+       eat_y_reg <= MAX_Y-1-EAT_Y_SIZE-300; // game이 멈추면 중간에서 시작
+end
+end
+assign hit = (reach_bar==1 && refr_tick==1)? 1 : 0; //ball이 bar를 때림, hit를 1클럭 pulse로 만들기 위해 refr_tick과 AND 시킴
+assign reach_bar = (jdh_x_r==eat_x_l)? 1 : 0; //ball이 bar에 부딪힘
+
+
+
+
+/*---------------------------------------------------------------*/
+//난수 eat 
+/*----------------------------------------------------------------*/
+
+/*---------------------------------------------------------*/
+// color setting
+/*---------------------------------------------------------*/
+assign rgb = (font_bit & jdh_on)? 3'b000: 
+              (font_bit & eat_on)? 3'b000: 
+              (font_bit & mon_on)?   3'b000:
+              (font_bit & mon1_on)?   3'b000:
+              (font_bit & mon2_on)?   3'b000:
+              (font_bit & mon3_on)?   3'b000:
+              (font_bit & mon4_on)?   3'b000:
+              (font_bit & mon5_on)?   3'b000:
+              (font_bit & mon6_on)?   3'b000:
+              (font_bit & mon7_on)?   3'b000:
+             (font_bit & score_on)? 3'b001 : //blue text
+             (font_bit & life_on)? 3'b001 : //blue text
+             (font_bit & over_on)? 3'b001 : //blue text
+             (wall1_on)? 3'b000 : //wall1층
+             (wall2_on)? 3'b000 : //wall2층
+             (wall3_on)? 3'b000 : //wall3층
+             (wall4_on)? 3'b000 : //wall4층 
+             (font_bit & ladder1_on)? 3'b000 :
+             (font_bit & ladder2_on)? 3'b000 :
+             (font_bit & ladder3_on)? 3'b000 :
+             (font_bit & ladder4_on)? 3'b000 :
+             3'b111; //yellow background
+
+endmodule
