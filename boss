@@ -1,0 +1,107 @@
+module boss(clk, rst, x, y, key, p_x_l, p_x_r, p_y_t, p_y_b, game_stop, en, b1_x_l, b1_x_r, b1_y_t, b1_y_b
+
+    );
+
+
+input clk, rst;
+input [9:0] x, y;
+input [4:0] key; 
+input game_stop;
+input en;
+input [9:0] p_y_t, p_y_b, p_x_l, p_x_r; 
+output [9:0] b1_x_l, b1_x_r, b1_y_t, b1_y_b;
+
+
+// 화면 원점 
+parameter MIN_X = 0;
+parameter MIN_Y = 0;
+
+parameter X_D = 1;
+parameter Y_D = 1;
+
+// 화면 크기 설정
+parameter MAX_X = 640; 
+parameter MAX_Y = 480;  
+parameter HALF_X = 320;
+parameter HALF_Y = 240;
+//ball 속도, ball size 
+parameter BALL_SIZE = 10; 
+parameter BALL_V = 4; //ball의 속도
+
+wire refr_tick; 
+wire b1_on;
+reg [9:0] b1_x_reg, b1_y_reg;
+reg [9:0]  b1_vx_reg, b1_vy_reg; 
+wire [9:0] b1_x_l, b1_x_r, b1_y_t, b1_y_b;
+wire reach_top, reach_bottom, reach_left, reach_right, reach_bar, miss_ball, x_touch, y_touch, touch_ball;
+wire p_1, p_2, p_3, p_4;
+wire b_1, b_2, b_3, b_4;
+reg  game_over;  
+
+//refrernce tick 
+assign refr_tick = (y==MAX_Y-1 && x==MAX_X-1)? 1 : 0; // 매 프레임마다 한 clk 동안만 1이 됨. 
+
+
+
+/*---------------------------------------------------------*/
+// b1의 위치 결정
+/*---------------------------------------------------------*/
+assign b1_x_l = b1_x_reg; //ball의 left
+assign b1_x_r = b1_x_reg + BALL_SIZE - 1; //ball의 right
+assign b1_y_t = b1_y_reg; //ball의 top
+assign b1_y_b = b1_y_reg + BALL_SIZE - 1; //ball의 bottom
+
+
+ 
+always @ (posedge clk or posedge rst) begin
+    if(rst | game_stop) begin
+        b1_x_reg <= HALF_X; // game이 멈추면 중간에서 시작
+        b1_y_reg <= HALF_Y; // game이 멈추면 중간에서 시작
+    end else if (refr_tick && en) begin
+        b1_x_reg <= b1_x_reg + b1_vx_reg; //매 프레임마다 ball_vx_reg만큼 움직임
+        b1_y_reg <= b1_y_reg + b1_vy_reg; //매 프레임마다 ball_vy_reg만큼 움직임
+    end
+end
+
+assign reach_top = (b1_y_t==MIN_Y)? 1 : 0; //ball 윗쪽 경계가 1보다 작으면 천장에 부딪힘
+assign reach_bottom = (b1_y_b>MAX_Y-1)? 1 : 0; //ball의 아래쪽 경계가 479보다 크면 바닥에 부딪힘
+assign reach_left = (b1_x_l<=MIN_X)? 1 : 0; //ball의 왼쪽 경계가 왼쪽 좌표의 끝 보다 작으면 부딪힘
+assign reach_right = (b1_x_r>=MAX_X)? 1 : 0; //ball의 오른쪽 경계가 오른쪽 좌표의 끝 보다 크면  부딪힘
+
+assign p_1 = (p_x_l>=0 && p_x_l<300)     &&   (p_y_t>=0 && p_y_t<220) ? 1 : 0;
+assign p_2 = (p_x_l>=300 && p_x_l<620)   &&   (p_y_t>=0 && p_y_t<220) ? 1 : 0;
+assign p_3 = (p_x_l>=0 && p_x_l<300)     &&   (p_y_t>=240 && p_y_t<460) ? 1 : 0;
+assign p_4 = (p_x_l>=300 && p_x_l<620)   &&   (p_y_t>=240 && p_y_t<460) ? 1 : 0;
+
+assign b_1 = (b1_x_l>=0 && b1_x_l<320)     &&   (b1_y_t>=0 && b1_y_t<240) ? 1 : 0;
+assign b_2 = (b1_x_l>=320 && b1_x_l<630)   &&   (b1_y_t>=0 && b1_y_t<240) ? 1 : 0;
+assign b_3 = (b1_x_l>=0 && b1_x_l<320)     &&   (b1_y_t>=240 && b1_y_t<470) ? 1 : 0;
+assign b_4 = (b1_x_l>=320 && b1_x_l<630)   &&   (b1_y_t>=240 && b1_y_t<470) ? 1 : 0;
+
+always @ (posedge clk or posedge rst) begin
+    if(rst | game_stop) begin
+        b1_vx_reg <= BALL_V*X_D; 
+        b1_vy_reg <= BALL_V*Y_D; 
+    end else begin
+
+        
+             if (p_1 && b_2) begin b1_vx_reg <= -BALL_V; b1_vy_reg <= 0;  end
+        else if (p_1 && b_3) begin b1_vx_reg <= 0; b1_vy_reg <= -BALL_V;  end
+        else if (p_1 && b_4) begin b1_vx_reg <= -BALL_V; b1_vy_reg <= -BALL_V; end 
+
+        else if (p_2 && b_1) begin b1_vx_reg <= BALL_V; b1_vy_reg <= 0;  end
+        else if (p_2 && b_3) begin b1_vx_reg <= -BALL_V; b1_vy_reg <= BALL_V;  end
+        else if (p_2 && b_4) begin b1_vx_reg <= 0; b1_vy_reg <= -BALL_V; end 
+        
+        else if (p_3 && b_1) begin b1_vx_reg <= 0; b1_vy_reg <= BALL_V;  end
+        else if (p_3 && b_2) begin b1_vx_reg <= -BALL_V; b1_vy_reg <= BALL_V;  end
+        else if (p_3 && b_4) begin b1_vx_reg <= -BALL_V; b1_vy_reg <= 0; end      
+        
+        else if (p_4 && b_1) begin b1_vx_reg <= BALL_V; b1_vy_reg <= BALL_V;  end
+        else if (p_4 && b_2) begin b1_vx_reg <= 0; b1_vy_reg <= BALL_V;  end
+        else if (p_4 && b_3) begin b1_vx_reg <= BALL_V; b1_vy_reg <= 0; end        
+    end  
+end
+
+
+endmodule
