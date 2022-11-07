@@ -1,0 +1,18 @@
+module counter(
+    input clk,
+    input rst,
+    input en, 
+    input game_stop,
+    output [5:0] o
+    );
+    
+    reg [5:0] o;
+
+   always @(posedge clk or posedge rst)
+      if (rst | game_stop)
+         o <= 6'd0;
+      else if (en) 
+          if (o == 6'd60) o <= 6'd0;
+      else o <= o + 1;
+
+endmodule
